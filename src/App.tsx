@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Zap, ArrowRight } from 'lucide-react';
+import { Zap, ArrowRight, Search } from 'lucide-react';
 import { egyptData } from './data/egyptData';
 import { GovernorateCard } from './components/GovernorateCard';
 import { CenterCard } from './components/CenterCard';
@@ -101,6 +101,23 @@ function App() {
     }
   };
 
+  const getTotalStats = () => {
+    const totalGovernorates = egyptData.length;
+    const totalCenters = egyptData.reduce((total, gov) => total + gov.centers.length, 0);
+    const totalStreets = egyptData.reduce((total, gov) => 
+      total + gov.centers.reduce((centerTotal, center) => centerTotal + center.streets.length, 0), 0
+    );
+    const totalShops = egyptData.reduce((total, gov) => 
+      total + gov.centers.reduce((centerTotal, center) => 
+        centerTotal + center.streets.reduce((streetTotal, street) => streetTotal + street.shops, 0), 0
+      ), 0
+    );
+
+    return { totalGovernorates, totalCenters, totalStreets, totalShops };
+  };
+
+  const stats = getTotalStats();
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50" dir="rtl">
       {/* Header */}
@@ -127,6 +144,28 @@ function App() {
               </button>
             )}
           </div>
+
+          {/* Stats Bar */}
+          {currentView === 'governorates' && (
+            <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-blue-50 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-blue-600">{stats.totalGovernorates}</div>
+                <div className="text-sm text-blue-800">محافظة</div>
+              </div>
+              <div className="bg-green-50 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-green-600">{stats.totalCenters}</div>
+                <div className="text-sm text-green-800">مركز</div>
+              </div>
+              <div className="bg-yellow-50 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-yellow-600">{stats.totalStreets}</div>
+                <div className="text-sm text-yellow-800">شارع متخصص</div>
+              </div>
+              <div className="bg-purple-50 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-purple-600">{stats.totalShops.toLocaleString()}</div>
+                <div className="text-sm text-purple-800">محل تجاري</div>
+              </div>
+            </div>
+          )}
         </div>
       </header>
 
@@ -216,7 +255,8 @@ function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center text-gray-600">
             <p>دليل شامل لمحلات الأدوات الكهربائية في جمهورية مصر العربية</p>
-            <p className="mt-2 text-sm">جميع البيانات قابلة للتحديث والتطوير</p>
+            <p className="mt-2 text-sm">يشمل جميع المحافظات الـ 27 مع {stats.totalShops.toLocaleString()} محل تجاري</p>
+            <p className="mt-1 text-xs text-gray-500">جميع البيانات قابلة للتحديث والتطوير</p>
           </div>
         </div>
       </footer>
