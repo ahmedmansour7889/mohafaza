@@ -6,23 +6,39 @@ import { CenterCard } from './components/CenterCard';
 import { StreetCard } from './components/StreetCard';
 import { SearchBar } from './components/SearchBar';
 import { Breadcrumb } from './components/Breadcrumb';
-import { Governorate, Center } from './types';
+import { AddCenterModal } from './components/AddCenterModal';
+import { AddStreetModal } from './components/AddStreetModal';
+import { EditCenterModal } from './components/EditCenterModal';
+import { EditStreetModal } from './components/EditStreetModal';
+import { DeleteConfirmModal } from './components/DeleteConfirmModal';
+import { Governorate, Center, Street } from './types';
 
 type ViewState = 'governorates' | 'centers' | 'streets';
 
 function App() {
+  const [data, setData] = useState(egyptData);
   const [currentView, setCurrentView] = useState<ViewState>('governorates');
   const [selectedGovernorate, setSelectedGovernorate] = useState<Governorate | null>(null);
   const [selectedCenter, setSelectedCenter] = useState<Center | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Modal states
+  const [showAddCenterModal, setShowAddCenterModal] = useState(false);
+  const [showAddStreetModal, setShowAddStreetModal] = useState(false);
+  const [showEditCenterModal, setShowEditCenterModal] = useState(false);
+  const [showEditStreetModal, setShowEditStreetModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [editingCenter, setEditingCenter] = useState<Center | null>(null);
+  const [editingStreet, setEditingStreet] = useState<Street | null>(null);
+  const [deleteItem, setDeleteItem] = useState<{type: 'center' | 'street', item: Center | Street} | null>(null);
 
   const filteredGovernorates = useMemo(() => {
-    if (!searchQuery) return egyptData;
-    return egyptData.filter(gov => 
+    if (!searchQuery) return data;
+    return data.filter(gov => 
       gov.name.includes(searchQuery) || 
       gov.nameEn.toLowerCase().includes(searchQuery.toLowerCase())
     );
-  }, [searchQuery]);
+  }, [data, searchQuery]);
 
   const filteredCenters = useMemo(() => {
     if (!selectedGovernorate) return [];
@@ -43,13 +59,15 @@ function App() {
   }, [selectedCenter, searchQuery]);
 
   const handleGovernorateSelect = (governorate: Governorate) => {
-    setSelectedGovernorate(governorate);
+    const updatedGov = data.find(g => g.id === governorate.id) || governorate;
+    setSelectedGovernorate(updatedGov);
     setCurrentView('centers');
     setSearchQuery('');
   };
 
   const handleCenterSelect = (center: Center) => {
-    setSelectedCenter(center);
+    const updatedCenter = selectedGovernorate?.centers.find(c => c.id === center.id) || center;
+    setSelectedCenter(updatedCenter);
     setCurrentView('streets');
     setSearchQuery('');
   };
@@ -65,6 +83,190 @@ function App() {
     setCurrentView('centers');
     setSelectedCenter(null);
     setSearchQuery('');
+  };
+
+  // Add Center
+  const handleAddCenter = (centerData: Omit<Center, 'id'>) => {
+    if (!selectedGovernorate) return;
+    
+    const newCenter: Center = {
+      ...centerData,
+      id: `${selectedGovernorate.id}-${Date.now()}`,
+    };
+
+    const updatedData = data.map(gov => {
+      if (gov.id === selectedGovernorate.id) {
+        const updatedGov = {
+          ...gov,
+          centers: [...gov.centers, newCenter]
+        };
+        setSelectedGovernorate(updatedGov);
+        return updatedGov;
+      }
+      return gov;
+    });
+
+    setData(updatedData);
+    setShowAddCenterModal(false);
+  };
+
+  // Edit Center
+  const handleEditCenter = (centerData: Omit<Center, 'id'>) => {
+    if (!selectedGovernorate || !editingCenter) return;
+
+    const updatedCenter: Center = {
+      ...centerData,
+      id: editingCenter.id,
+    };
+
+    const updatedData = data.map(gov => {
+      if (gov.id === selectedGovernorate.id) {
+        const updatedGov = {
+          ...gov,
+          centers: gov.centers.map(center => 
+            center.id === editingCenter.id ? updatedCenter : center
+          )
+        };
+        setSelectedGovernorate(updatedGov);
+        return updatedGov;
+      }
+      return gov;
+    });
+
+    setData(updatedData);
+    setShowEditCenterModal(false);
+    setEditingCenter(null);
+  };
+
+  // Delete Center
+  const handleDeleteCenter = (center: Center) => {
+    setDeleteItem({ type: 'center', item: center });
+    setShowDeleteModal(true);
+  };
+
+  // Add Street
+  const handleAddStreet = (streetData: Omit<Street, 'id'>) => {
+    if (!selectedGovernorate || !selectedCenter) return;
+    
+    const newStreet: Street = {
+      ...streetData,
+      id: `${selectedCenter.id}-${Date.now()}`,
+    };
+
+    const updatedData = data.map(gov => {
+      if (gov.id === selectedGovernorate.id) {
+        const updatedGov = {
+          ...gov,
+          centers: gov.centers.map(center => {
+            if (center.id === selectedCenter.id) {
+              const updatedCenter = {
+                ...center,
+                streets: [...center.streets, newStreet]
+              };
+              setSelectedCenter(updatedCenter);
+              return updatedCenter;
+            }
+            return center;
+          })
+        };
+        setSelectedGovernorate(updatedGov);
+        return updatedGov;
+      }
+      return gov;
+    });
+
+    setData(updatedData);
+    setShowAddStreetModal(false);
+  };
+
+  // Edit Street
+  const handleEditStreet = (streetData: Omit<Street, 'id'>) => {
+    if (!selectedGovernorate || !selectedCenter || !editingStreet) return;
+
+    const updatedStreet: Street = {
+      ...streetData,
+      id: editingStreet.id,
+    };
+
+    const updatedData = data.map(gov => {
+      if (gov.id === selectedGovernorate.id) {
+        const updatedGov = {
+          ...gov,
+          centers: gov.centers.map(center => {
+            if (center.id === selectedCenter.id) {
+              const updatedCenter = {
+                ...center,
+                streets: center.streets.map(street => 
+                  street.id === editingStreet.id ? updatedStreet : street
+                )
+              };
+              setSelectedCenter(updatedCenter);
+              return updatedCenter;
+            }
+            return center;
+          })
+        };
+        setSelectedGovernorate(updatedGov);
+        return updatedGov;
+      }
+      return gov;
+    });
+
+    setData(updatedData);
+    setShowEditStreetModal(false);
+    setEditingStreet(null);
+  };
+
+  // Delete Street
+  const handleDeleteStreet = (street: Street) => {
+    setDeleteItem({ type: 'street', item: street });
+    setShowDeleteModal(true);
+  };
+
+  // Confirm Delete
+  const handleConfirmDelete = () => {
+    if (!deleteItem || !selectedGovernorate) return;
+
+    if (deleteItem.type === 'center') {
+      const updatedData = data.map(gov => {
+        if (gov.id === selectedGovernorate.id) {
+          const updatedGov = {
+            ...gov,
+            centers: gov.centers.filter(center => center.id !== deleteItem.item.id)
+          };
+          setSelectedGovernorate(updatedGov);
+          return updatedGov;
+        }
+        return gov;
+      });
+      setData(updatedData);
+    } else if (deleteItem.type === 'street' && selectedCenter) {
+      const updatedData = data.map(gov => {
+        if (gov.id === selectedGovernorate.id) {
+          const updatedGov = {
+            ...gov,
+            centers: gov.centers.map(center => {
+              if (center.id === selectedCenter.id) {
+                const updatedCenter = {
+                  ...center,
+                  streets: center.streets.filter(street => street.id !== deleteItem.item.id)
+                };
+                setSelectedCenter(updatedCenter);
+                return updatedCenter;
+              }
+              return center;
+            })
+          };
+          setSelectedGovernorate(updatedGov);
+          return updatedGov;
+        }
+        return gov;
+      });
+      setData(updatedData);
+    }
+
+    setShowDeleteModal(false);
+    setDeleteItem(null);
   };
 
   const getBreadcrumbItems = () => {
@@ -102,12 +304,12 @@ function App() {
   };
 
   const getTotalStats = () => {
-    const totalGovernorates = egyptData.length;
-    const totalCenters = egyptData.reduce((total, gov) => total + gov.centers.length, 0);
-    const totalStreets = egyptData.reduce((total, gov) => 
+    const totalGovernorates = data.length;
+    const totalCenters = data.reduce((total, gov) => total + gov.centers.length, 0);
+    const totalStreets = data.reduce((total, gov) => 
       total + gov.centers.reduce((centerTotal, center) => centerTotal + center.streets.length, 0), 0
     );
-    const totalShops = egyptData.reduce((total, gov) => 
+    const totalShops = data.reduce((total, gov) => 
       total + gov.centers.reduce((centerTotal, center) => 
         centerTotal + center.streets.reduce((streetTotal, street) => streetTotal + street.shops, 0), 0
       ), 0
@@ -173,13 +375,34 @@ function App() {
         {/* Breadcrumb */}
         <Breadcrumb items={getBreadcrumbItems()} />
 
-        {/* Search */}
-        <div className="mb-8">
-          <SearchBar
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder={getSearchPlaceholder()}
-          />
+        {/* Search and Add Button */}
+        <div className="mb-8 flex flex-col sm:flex-row gap-4 items-center">
+          <div className="flex-1">
+            <SearchBar
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder={getSearchPlaceholder()}
+            />
+          </div>
+          
+          {/* Add Buttons */}
+          {currentView === 'centers' && selectedGovernorate && (
+            <button
+              onClick={() => setShowAddCenterModal(true)}
+              className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+            >
+              إضافة مركز جديد
+            </button>
+          )}
+          
+          {currentView === 'streets' && selectedCenter && (
+            <button
+              onClick={() => setShowAddStreetModal(true)}
+              className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+            >
+              إضافة شارع جديد
+            </button>
+          )}
         </div>
 
         {/* Content */}
@@ -215,6 +438,12 @@ function App() {
                   key={center.id}
                   center={center}
                   onClick={() => handleCenterSelect(center)}
+                  onEdit={(center) => {
+                    setEditingCenter(center);
+                    setShowEditCenterModal(true);
+                  }}
+                  onDelete={handleDeleteCenter}
+                  showActions={true}
                 />
               ))}
             </div>
@@ -230,7 +459,16 @@ function App() {
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {filteredStreets.map((street) => (
-                <StreetCard key={street.id} street={street} />
+                <StreetCard 
+                  key={street.id} 
+                  street={street}
+                  onEdit={(street) => {
+                    setEditingStreet(street);
+                    setShowEditStreetModal(true);
+                  }}
+                  onDelete={handleDeleteStreet}
+                  showActions={true}
+                />
               ))}
             </div>
           </div>
@@ -260,6 +498,55 @@ function App() {
           </div>
         </div>
       </footer>
+
+      {/* Modals */}
+      {showAddCenterModal && (
+        <AddCenterModal
+          onClose={() => setShowAddCenterModal(false)}
+          onAdd={handleAddCenter}
+        />
+      )}
+
+      {showAddStreetModal && (
+        <AddStreetModal
+          onClose={() => setShowAddStreetModal(false)}
+          onAdd={handleAddStreet}
+        />
+      )}
+
+      {showEditCenterModal && editingCenter && (
+        <EditCenterModal
+          center={editingCenter}
+          onClose={() => {
+            setShowEditCenterModal(false);
+            setEditingCenter(null);
+          }}
+          onSave={handleEditCenter}
+        />
+      )}
+
+      {showEditStreetModal && editingStreet && (
+        <EditStreetModal
+          street={editingStreet}
+          onClose={() => {
+            setShowEditStreetModal(false);
+            setEditingStreet(null);
+          }}
+          onSave={handleEditStreet}
+        />
+      )}
+
+      {showDeleteModal && deleteItem && (
+        <DeleteConfirmModal
+          itemName={deleteItem.item.name}
+          itemType={deleteItem.type === 'center' ? 'المركز' : 'الشارع'}
+          onClose={() => {
+            setShowDeleteModal(false);
+            setDeleteItem(null);
+          }}
+          onConfirm={handleConfirmDelete}
+        />
+      )}
     </div>
   );
 }
